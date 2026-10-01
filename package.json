@@ -1,0 +1,20 @@
+{
+  "name": "coa-app",
+  "version": "1.0.0",
+  "description": "Imports lab results from CSV and publishes certificate-of-analysis summary pages",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "COA_MODE=demo node server.js",
+    "export-demo": "node scripts/export-demo.js",
+    "sample-csv": "node scripts/sample-csv.js"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "csv-parse": "^7.0.3",
+    "express": "^5.2.1",
+    "qrcode": "^1.5.4"
+  }
+}

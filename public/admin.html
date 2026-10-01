@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COA Admin</title>
+<style>
+  body{font-family:"Segoe UI",Arial,sans-serif;background:#eceff4;color:#1b2430;margin:0;padding:28px 16px;font-size:14px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;color:#12305e;margin:0 0 4px}
+  .card{background:#fff;border:1px solid #e3e7ee;border-top:4px solid #12305e;border-radius:4px;padding:18px 22px;margin:14px 0}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.9px;color:#12305e;margin:0 0 10px}
+  button{padding:8px 14px;border:1px solid #12305e;background:#12305e;color:#fff;border-radius:6px;cursor:pointer}
+  button.ghost{background:#fff;color:#12305e}
+  input,select{padding:7px;border:1px solid #cfd6e0;border-radius:6px}
+  table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;text-transform:uppercase;color:#6b7686;border-bottom:2px solid #12305e;padding:6px}
+  td{padding:8px 6px;border-bottom:1px solid #e3e7ee}
+  .pass{color:#1e8e4e;font-weight:700}.fail{color:#c0392b;font-weight:700}
+  pre{background:#f6f8fb;border:1px solid #e3e7ee;padding:10px;white-space:pre-wrap;font-size:12px;max-height:260px;overflow:auto}
+  .demo{background:#fff4d6;border:1px solid #c0392b;color:#7a1f14;padding:10px 14px;border-radius:6px;margin:12px 0}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .muted{color:#6b7686;font-weight:400;font-size:12px}
+  .search{min-width:300px}
+  .stat{display:inline-block;margin-right:14px}
+  .stat b{font-size:16px}
+  .ok{color:#1e8e4e}.warn{color:#b8860b}.bad{color:#c0392b}
+  a{color:#12305e}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Certificate of Analysis — Admin</h1>
+  <div id="demo" class="demo" style="display:none"><b>Demo mode.</b> All lots here are placeholder data and every page is stamped as a sample.</div>
+
+  <div class="card" id="tokenCard" style="display:none">
+    <h2>Admin token</h2>
+    <div class="row"><input id="token" type="password" placeholder="ADMIN_TOKEN"><button class="ghost" onclick="saveToken()">Save</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Certificate logo (uploaded image)</h2>
+    <p style="margin-top:0">Upload a PNG, JPG or WebP. The image is saved with the deployment and used as the logo on every certificate; uploading a new one replaces it.</p>
+    <div class="row"><input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp"><button onclick="uploadLogo()">Upload logo</button></div>
+    <div id="logoOut" class="muted" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>1 · Upload the bulk CSV</h2>
+    <p style="margin-top:0">One row per product/lot — upload the whole batch at once. <a href="/sample.csv"><b>Download the sample CSV</b></a> to see the exact columns and a filled-in example. Rows with errors are rejected with reasons; nothing is half-published. Every imported lot gets its certificate <em>and</em> its chromatogram generated automatically.</p>
+    <div class="row"><input type="file" id="csv" accept=".csv,text/csv"><button onclick="importCsv()">Import</button></div>
+    <div id="importSummary" style="margin-top:10px;display:none"></div>
+    <pre id="importOut" style="display:none"></pre>
+  </div>
+
+  <div class="card">
+    <h2>Lots <span id="lotCount" class="muted"></span></h2>
+    <div class="row" style="margin-bottom:12px"><input id="search" class="search" type="search" placeholder="Search lot, product or COA #" oninput="renderLots()"></div>
+    <table><thead><tr><th>Lot</th><th>Product</th><th>COA #</th><th>Result</th><th></th></tr></thead><tbody id="lots"></tbody></table>
+  </div>
+</div>
+<script>
+const tk = () => sessionStorage.getItem('coa_token') || '';
+const hdr = (extra={}) => Object.assign({'x-admin-token': tk()}, extra);
+let ALL = [];
+function saveToken(){ sessionStorage.setItem('coa_token', document.getElementById('token').value); load(); }
+function note(id, v){ const e=document.getElementById(id); e.style.display='block'; e.textContent = typeof v==='string'?v:JSON.stringify(v,null,2); }
+async function uploadLogo(){
+  const f=document.getElementById('logoFile').files[0];
+  const out=document.getElementById('logoOut');
+  if(!f) return out.textContent='Choose an image first.';
+  const r=await fetch('/api/logo',{method:'POST',headers:hdr({'content-type':f.type}),body:await f.arrayBuffer()});
+  const j=await r.json();
+  out.textContent = r.ok ? ('Saved '+j.saved+'. Reload a certificate to see it.') : ('Error: '+j.error);
+}
+async function importCsv(){
+  const f=document.getElementById('csv').files[0]; if(!f) return note('importOut','Choose a CSV file first.');
+  const r=await fetch('/api/import',{method:'POST',headers:hdr({'content-type':'text/csv'}),body:await f.text()});
+  const out=document.getElementById('importSummary');
+  if(!r.ok){ out.style.display='none'; return note('importOut', await r.json()); }
+  const j=await r.json();
+  const created=j.imported.filter(i=>i.status==='created').length, updated=j.imported.length-created;
+  out.style.display='block';
+  out.innerHTML='<span class="stat ok"><b>'+created+'</b> created</span>'
+    +'<span class="stat ok"><b>'+updated+'</b> updated</span>'
+    +'<span class="stat '+(j.rejected.length?'bad':'')+'"><b>'+j.rejected.length+'</b> rejected</span>'
+    +'<span class="stat '+(j.warnings.length?'warn':'')+'"><b>'+j.warnings.length+'</b> warnings</span>';
+  if(j.rejected.length||j.warnings.length) note('importOut', { rejected:j.rejected, warnings:j.warnings });
+  else document.getElementById('importOut').style.display='none';
+  load();
+}
+function renderLots(){
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const tb=document.getElementById('lots');
+  tb.textContent='';
+  const rows=q?ALL.filter(l=>[l.lot,l.product,l.coa].some(v=>String(v||'').toLowerCase().includes(q))):ALL;
+  document.getElementById('lotCount').textContent='— '+rows.length+' of '+ALL.length+' shown';
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="5">No lots yet. Import a CSV to populate them.</td></tr>'; return; }
+  for(const l of rows){
+    const tr=document.createElement('tr');
+    for(const v of [l.lot,l.product,l.coa]){ const td=document.createElement('td'); td.textContent=v; tr.appendChild(td); }
+    let td=document.createElement('td'); td.textContent=l.overall; td.className=l.overall==='PASS'?'pass':'fail'; tr.appendChild(td);
+    td=document.createElement('td'); const a=document.createElement('a'); a.href='/coa/'+encodeURIComponent(l.lot); a.target='_blank'; a.textContent='Open COA'; td.appendChild(a); tr.appendChild(td);
+    tb.appendChild(tr);
+  }
+}
+async function load(){
+  const cfg=await (await fetch('/api/config')).json();
+  document.getElementById('demo').style.display = cfg.mode==='demo'?'block':'none';
+  document.getElementById('tokenCard').style.display = cfg.mode==='production'?'block':'none';
+  const r=await fetch('/api/lots',{headers:hdr()});
+  if(!r.ok){ ALL=[]; document.getElementById('lotCount').textContent=''; document.getElementById('lots').innerHTML='<tr><td colspan="5">Enter the admin token to see lots.</td></tr>'; return; }
+  ALL=await r.json();
+  renderLots();
+}
+load();
+</script>
+</body>
+</html>
