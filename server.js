@@ -7,7 +7,7 @@ const { Store } = require('./lib/store');
 const { importRows, parseCsvText } = require('./lib/importer');
 const { renderPage } = require('./lib/pages');
 const { DEMO_ROWS } = require('./lib/demo-data');
-const { derive, COLUMNS } = require('./lib/derive');
+const { derive, COLUMNS, DEFAULT_LAB } = require('./lib/derive');
 const { safeLot } = require('./lib/util');
 
 let fileCfg = {};
@@ -39,17 +39,59 @@ function admin(req, res, next) {
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+const DIST = path.join(__dirname, 'web', 'dist');
+app.use(express.static(DIST, { index: false, maxAge: '1h' }));
 app.use('/media', express.static(store.images));
 
-app.get('/api/config', (req, res) => res.json({ mode: cfg.mode }));
+function logoUrl() {
+  try {
+    const f = fs.readdirSync(store.images).find((n) => /^logo\.(png|jpe?g|webp)$/i.test(n));
+    return f ? `/media/${f}` : '';
+  } catch { return ''; }
+}
+app.get('/api/config', (req, res) => res.json({ mode: cfg.mode, baseUrl: cfg.baseUrl, lab: DEFAULT_LAB, logo: logoUrl() }));
 app.get('/api/lots', admin, (req, res) => {
   const out = Object.entries(store.all()).map(([lot, rec]) => {
     const d = derive(rec.row, { mode: cfg.mode });
-    return { lot, product: rec.row.product_name, coa: rec.row.coa_number, overall: d.overall || 'INVALID', updated: rec.updated };
+    return {
+      lot, product: rec.row.product_name, coa: rec.row.coa_number, client: rec.row.client_name,
+      analysisDate: rec.row.analysis_date, purity: d.fields ? d.fields.purity_result : null,
+      overall: d.overall || 'INVALID', updated: rec.updated,
+    };
   });
   res.json(out);
+});
+
+app.get('/api/lots/:lot', admin, (req, res) => {
+  const rec = safeLot(req.params.lot) && store.get(req.params.lot);
+  if (!rec) return res.status(404).json({ error: 'Certificate not found' });
+  res.json({ row: rec.row, updated: rec.updated });
+});
+
+// Single-certificate create/update from the Generate page. Same validation as the CSV import.
+app.post('/api/lots', admin, express.json({ limit: '1mb' }), (req, res) => {
+  const row = req.body && req.body.row;
+  if (!row || typeof row !== 'object') return res.status(400).json({ error: 'Send {"row": {...}}' });
+  const out = importRows([row], store, cfg.mode);
+  if (out.rejected.length) return res.status(422).json({ error: 'Certificate has errors', errors: out.rejected[0].errors });
+  res.json({ lot: out.imported[0].lot, status: out.imported[0].status, overall: out.imported[0].overall, warnings: out.warnings.map((w) => w.warning) });
+});
+
+app.delete('/api/lots/:lot', admin, (req, res) => {
+  if (!safeLot(req.params.lot) || !store.delete(req.params.lot)) return res.status(404).json({ error: 'Certificate not found' });
+  res.json({ deleted: req.params.lot });
+});
+
+// Validates a draft and renders the real certificate without saving it.
+app.post('/api/preview', admin, express.json({ limit: '1mb' }), async (req, res) => {
+  const row = req.body && req.body.row;
+  if (!row || typeof row !== 'object') return res.status(400).json({ error: 'Send {"row": {...}}' });
+  const d = derive(row, { mode: cfg.mode });
+  if (d.errors.length) return res.json({ errors: d.errors, warnings: d.warnings, html: null });
+  try {
+    const page = await renderPage(d.lot, ctx, { row: d.row, updated: new Date().toISOString() });
+    res.json({ errors: [], warnings: d.warnings, html: page.html, overall: d.overall, fields: d.fields });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Could not render the preview' }); }
 });
 
 app.get('/sample.csv', (req, res) => {
@@ -105,6 +147,14 @@ app.get('/coa/:lot/chromatogram.svg', async (req, res) => {
     if (!page || !page.chromatogramSvg) return res.status(404).send('Chromatogram not available');
     res.type('image/svg+xml').send(page.chromatogramSvg);
   } catch (e) { console.error(e); res.status(500).send('Could not render the chromatogram'); }
+});
+
+// Single-page app: any other GET that wants HTML gets the React shell (routes: /, /admin/...).
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || !req.accepts('html')) return next();
+  const index = path.join(DIST, 'index.html');
+  if (!fs.existsSync(index)) return res.status(503).type('text').send('The web app has not been built. Run: npm run build');
+  res.sendFile(index);
 });
 
 if (require.main === module) {

@@ -1,0 +1,38 @@
+:root {
+  /* Brand: the navy is the certificate's own header colour so site and document read as one. */
+  --navy-900: #0b1f3f;
+  --navy-800: #12305e;
+  --navy-700: #1b417c;
+  --navy-100: #e4eaf4;
+  --navy-50: #f0f3f9;
+
+  --paper: #f6f4ef;
+  --paper-2: #efece5;
+  --surface: #ffffff;
+  --ink: #0f1b2d;
+  --ink-2: #44505f;
+  --ink-3: #6b7686;
+  --line: #e1ddd3;
+  --line-strong: #cfcabd;
+
+  --brass: #9a6b1f;
+  --pass: #1e7a46;
+  --pass-bg: #e6f3ec;
+  --fail: #b3321f;
+  --fail-bg: #fbebe8;
+  --warn: #8a6a0a;
+  --warn-bg: #fbf3d9;
+
+  --font-display: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow-1: 0 1px 2px rgba(15, 27, 45, 0.06);
+  --shadow-2: 0 6px 24px -8px rgba(15, 27, 45, 0.18);
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast: 140ms;
+  --t-med: 260ms;
+}

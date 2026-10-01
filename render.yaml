@@ -3,7 +3,7 @@ services:
     name: coa-app
     runtime: node
     plan: starter
-    buildCommand: npm ci --omit=dev
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /sample.csv
     autoDeploy: true
