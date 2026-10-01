@@ -46,10 +46,12 @@ export const SECTIONS = [
     { k: 'hg_result', label: 'Mercury (limit 1.5 ppm)', req: true, options: ['Not Detected'] },
     { k: 'pb_result', label: 'Lead (limit 1 ppm)', req: true, options: ['Not Detected'] },
   ] },
-  { id: 'lab', title: 'Laboratory and links', blurb: 'Leave the laboratory fields blank to use the defaults. Links let readers check the original report.', fields: [
+  { id: 'lab', title: 'Laboratory, signatory and links', blurb: 'Leave the laboratory fields blank to use the defaults. Links let readers check the original report.', fields: [
     { k: 'lab_name', label: 'Laboratory name', dflt: 'name' },
     { k: 'lab_address', label: 'Laboratory address', dflt: 'address', wide: true },
     { k: 'lab_website', label: 'Laboratory website', dflt: 'website' },
+    { k: 'signatory_name', label: 'Signatory name', hint: 'Printed under the signature line. Leave blank to sign by hand.' },
+    { k: 'signatory_title', label: 'Signatory title', ph: 'Laboratory Director' },
     { k: 'verify_url', label: 'Verification link', ph: 'https://…' },
     { k: 'original_pdf_url', label: 'Original report link', ph: 'https://…' },
     { k: 'product_image', label: 'Product photo file name', ph: 'vial.png', hint: 'Upload via the API; the file must exist.' },
