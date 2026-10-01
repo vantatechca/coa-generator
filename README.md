@@ -64,6 +64,12 @@ The logo and the optional product photo are the only uploaded images:
 - **Logo** — set `logo` in `config.json` (or leave blank); the file is served from `/media/...`. For a per-deployment upload, POST the image to `/api/image/<name>` (png/jpg/webp) and reference the saved name.
 - **Product photo** — set the `product_image` column to the uploaded file name; the page shows it when the file exists under `data/<mode>/images`.
 
+## Logo, product photo, footer mark and signature
+
+- **Logo**: upload in Settings. It prints in the header and as a small mark in the footer. With no upload, the laboratory name is printed as a wordmark.
+- **Product photo**: set the `product_image` column. If it is blank or the file is missing, the slot shows "Product image not provided".
+- **Signature**: upload one signature image in Settings; set `signatory_name` and `signatory_title` per row (both optional). Without them the certificate prints a blank signature line labelled "Authorized signatory" and a date line.
+
 ## Demo mode
 
 Every page gets a sticky notice, a tiled "SAMPLE — PLACEHOLDER DATA" watermark, and an in-page notice. These are added by the renderer, not by the data, so they cannot be removed by editing a CSV. Demo data is stored separately (`data/demo`) from production (`data/production`).

@@ -5,8 +5,7 @@ import { PageHead } from './AdminLayout.jsx';
 import { useToast } from '../../components/ui.jsx';
 import { IconImage, IconUpload } from '../../components/Icons.jsx';
 
-export default function Settings() {
-  const { config, reloadConfig } = useApp();
+function ImageCard({ title, blurb, endpoint, current, empty, done, reload }) {
   const toast = useToast();
   const input = useRef(null);
   const [file, setFile] = useState(null);
@@ -16,29 +15,40 @@ export default function Settings() {
   async function upload() {
     setBusy(true);
     try {
-      await api('/api/logo', { method: 'POST', headers: { 'content-type': file.type }, body: await file.arrayBuffer() });
-      await reloadConfig(); setBust(Date.now()); setFile(null); toast('Logo updated on every certificate');
+      await api(endpoint, { method: 'POST', headers: { 'content-type': file.type }, body: await file.arrayBuffer() });
+      await reload(); setBust(Date.now()); setFile(null); toast(done);
     } catch (e) { toast(e.message, 'warn'); }
     finally { setBusy(false); }
   }
-  const preview = file ? URL.createObjectURL(file) : config.logo ? `${config.logo}?v=${bust}` : '';
+  const preview = file ? URL.createObjectURL(file) : current ? `${current}?v=${bust}` : '';
+  return (
+    <section className="card-box">
+      <div className="card-head"><div><h2>{title}</h2><p>{blurb}</p></div></div>
+      <div className="logo-row">
+        <div className="logo-box">{preview ? <img src={preview} alt={`Current ${title.toLowerCase()}`} /> : <span><IconImage />{empty}</span>}</div>
+        <div className="logo-ctl">
+          <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => setFile(e.target.files[0] || null)} />
+          <button className="btn ghost" onClick={() => input.current.click()}>Choose image</button>
+          <button className="btn" onClick={upload} disabled={!file || busy}><IconUpload />{busy ? 'Uploading…' : 'Upload'}</button>
+          {file && <span className="muted">{file.name}</span>}
+        </div>
+      </div>
+    </section>
+  );
+}
 
+export default function Settings() {
+  const { config, reloadConfig } = useApp();
   return (
     <>
       <PageHead title="Settings" sub="Branding and deployment details." />
       <div className="settings">
-        <section className="card-box">
-          <div className="card-head"><div><h2>Certificate logo</h2><p>PNG, JPG or WebP. It appears on every certificate; uploading a new one replaces it.</p></div></div>
-          <div className="logo-row">
-            <div className="logo-box">{preview ? <img src={preview} alt="Current logo" /> : <span><IconImage />No logo uploaded</span>}</div>
-            <div className="logo-ctl">
-              <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => setFile(e.target.files[0] || null)} />
-              <button className="btn ghost" onClick={() => input.current.click()}>Choose image</button>
-              <button className="btn" onClick={upload} disabled={!file || busy}><IconUpload />{busy ? 'Uploading…' : 'Upload logo'}</button>
-              {file && <span className="muted">{file.name}</span>}
-            </div>
-          </div>
-        </section>
+        <ImageCard title="Certificate logo" endpoint="/api/logo" current={config.logo} empty="No logo uploaded" reload={reloadConfig}
+          done="Logo updated on every certificate"
+          blurb="PNG, JPG or WebP. It appears in the header and footer of every certificate. Until you upload one, the laboratory name is printed as a wordmark." />
+        <ImageCard title="Signature image" endpoint="/api/signature" current={config.signature} empty="No signature uploaded" reload={reloadConfig}
+          done="Signature updated on every certificate"
+          blurb="PNG with a transparent background works best. It is printed above the signature line; the signatory’s name and title come from each certificate." />
         <section className="card-box">
           <div className="card-head"><div><h2>Deployment</h2></div></div>
           <dl className="kv">

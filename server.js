@@ -43,13 +43,13 @@ const DIST = path.join(__dirname, 'web', 'dist');
 app.use(express.static(DIST, { index: false, maxAge: '1h' }));
 app.use('/media', express.static(store.images));
 
-function logoUrl() {
+function imageUrl(base) {
   try {
-    const f = fs.readdirSync(store.images).find((n) => /^logo\.(png|jpe?g|webp)$/i.test(n));
+    const f = fs.readdirSync(store.images).find((n) => new RegExp(`^${base}\\.(png|jpe?g|webp)$`, 'i').test(n));
     return f ? `/media/${f}` : '';
   } catch { return ''; }
 }
-app.get('/api/config', (req, res) => res.json({ mode: cfg.mode, baseUrl: cfg.baseUrl, lab: DEFAULT_LAB, logo: logoUrl() }));
+app.get('/api/config', (req, res) => res.json({ mode: cfg.mode, baseUrl: cfg.baseUrl, lab: DEFAULT_LAB, logo: imageUrl('logo'), signature: imageUrl('signature') }));
 app.get('/api/lots', admin, (req, res) => {
   const out = Object.entries(store.all()).map(([lot, rec]) => {
     const d = derive(rec.row, { mode: cfg.mode });
@@ -115,16 +115,18 @@ app.post('/api/image/:file', admin, express.raw({ type: ['image/png', 'image/jpe
   res.json({ saved: req.params.file });
 });
 
-// Certificate logo. Saved as logo.<ext> and picked up automatically by every certificate page.
-app.post('/api/logo', admin, express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '5mb' }), (req, res) => {
-  const type = req.get('content-type') || '';
-  const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
-  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Send a PNG, JPG or WebP image' });
-  for (const f of fs.readdirSync(store.images)) if (/^logo\./i.test(f)) fs.rmSync(path.join(store.images, f), { force: true });
-  const name = `logo.${ext}`;
-  fs.writeFileSync(path.join(store.images, name), req.body);
-  res.json({ saved: name, url: `/media/${name}` });
-});
+// Certificate logo and signature image. Saved as logo.<ext> / signature.<ext> and picked up by every certificate page.
+for (const base of ['logo', 'signature']) {
+  app.post(`/api/${base}`, admin, express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '5mb' }), (req, res) => {
+    const type = req.get('content-type') || '';
+    const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Send a PNG, JPG or WebP image' });
+    for (const f of fs.readdirSync(store.images)) if (new RegExp(`^${base}\\.`, 'i').test(f)) fs.rmSync(path.join(store.images, f), { force: true });
+    const name = `${base}.${ext}`;
+    fs.writeFileSync(path.join(store.images, name), req.body);
+    res.json({ saved: name, url: `/media/${name}` });
+  });
+}
 
 app.post('/api/demo/reset', admin, (req, res) => {
   if (cfg.mode !== 'demo') return res.status(403).json({ error: 'Only available in demo mode' });
