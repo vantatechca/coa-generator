@@ -2,6 +2,17 @@
 
 Imports lab results from a CSV (one row per product/lot) and publishes a certificate-of-analysis page for each lot, including a chromatogram the app draws itself from the peak data in the row. Built for bulk uploads: drop a CSV with hundreds or thousands of rows and every lot is published in one pass.
 
+## Web app
+
+The site is a React single-page app in `web/` (Vite). It has a public landing page (`/`), and a staff area (`/admin`) with a dashboard, certificate list, a Generate COA page (single certificate with live validation and a real preview, or bulk CSV upload) and settings. The certificates themselves (`/coa/<lot>`) are still rendered by the server from `template.html`, unchanged.
+
+```bash
+npm install
+npm run build        # builds web/ into web/dist (the server serves it)
+npm run dev:server   # API + certificates on :3000 (demo mode)
+npm run dev:web      # Vite dev server on :5173 with hot reload, proxying to :3000
+```
+
 ## Run it
 
 ```bash
@@ -17,11 +28,11 @@ Production:
 COA_MODE=production ADMIN_TOKEN=<long-random-secret> BASE_URL=https://your-domain npm start
 ```
 
-Production refuses to start without `ADMIN_TOKEN`. Public pages (`/coa/<lot>`) need no token; the admin page and `/api/*` do.
+Production refuses to start without `ADMIN_TOKEN`. Public pages (`/coa/<lot>`) need no token; the staff area (`/admin`) and `/api/*` do.
 
 ## Bulk import
 
-1. Open the admin page (`/`). Download **`/sample.csv`** — the exact columns plus a filled-in example row.
+1. Sign in to the staff area (`/admin`) and open **Generate COA → Bulk upload (CSV)**. Download **`/sample.csv`** — the exact columns plus a filled-in example row.
 2. Upload the CSV (one row per lot). Every valid row is stored in a single write, so large files stay fast. Rows with errors are rejected with reasons; nothing is half-published. The summary shows created / updated / rejected / warning counts.
 3. Share `https://your-domain/coa/<lot>`. The QR code on each page points to that URL.
 
