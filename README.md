@@ -59,7 +59,7 @@ Every page gets a sticky notice, a tiled "SAMPLE — PLACEHOLDER DATA" watermark
 
 ## Data you provide
 
-Testing-laboratory name, address, website, report links and results must match the laboratory report they come from. The page shows them as entered.
+Testing-laboratory name, address, website, report links and results must match the laboratory report they come from. The page shows them as entered. The `lab_name`, `lab_address` and `lab_website` columns are optional: when blank, certificates print the default laboratory (MSD Sciences, set in `lib/derive.js`).
 
 ## Files
 
